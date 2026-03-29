@@ -250,7 +250,7 @@
         </div>
     </div>
 
-    <!-- Results Overlay -->
+    <!-- Results/Finish Overlay -->
     <div id="results-overlay" class="overlay hidden">
         <div class="card">
             <h1>Great Job!</h1>
@@ -258,6 +258,17 @@
             <p id="final-distance">You traveled 0 meters!</p>
             <button class="btn" id="replay-btn">PLAY AGAIN</button>
             <button class="btn btn-secondary" id="menu-btn">MENU</button>
+        </div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="game-over-overlay" class="overlay hidden">
+        <div class="card" style="border-color: #ff4d4d;">
+            <h1 style="color: #ff4d4d;">WHOOPS!</h1>
+            <p style="font-size: 1.5rem; font-weight: bold;">You fell off the track!</p>
+            <p id="game-over-stats">Score: 0 • Distance: 0m</p>
+            <button class="btn" id="game-over-replay-btn">TRY AGAIN</button>
+            <button class="btn btn-secondary" id="game-over-menu-btn">MENU</button>
         </div>
     </div>
 </div>
@@ -318,11 +329,12 @@ class Game {
 
         this.updateShopUI();
 
-        this.lastTime = 0;
+        this.lastTime = performance.now();
         this.accumulator = 0;
-        this.timeStep = 1000 / 60; // 60 FPS update
+        this.timeStep = 1000 / 60;
 
         this.animationId = requestAnimationFrame((t) => this.gameLoop(t));
+        console.log("Game initialized");
     }
 
     setupEventListeners() {
@@ -337,6 +349,11 @@ class Game {
         backBtn.onclick = () => this.showOverlay('menu-overlay');
         replayBtn.onclick = () => this.startGame();
         menuBtn.onclick = () => this.showOverlay('menu-overlay');
+
+        const gameOverReplayBtn = document.getElementById('game-over-replay-btn');
+        const gameOverMenuBtn = document.getElementById('game-over-menu-btn');
+        gameOverReplayBtn.onclick = () => this.startGame();
+        gameOverMenuBtn.onclick = () => this.showOverlay('menu-overlay');
 
         // Add Finish Button in HUD
         const finishBtn = document.createElement('div');
@@ -420,6 +437,9 @@ class Game {
             this.state = 'RESULTS';
             document.getElementById('final-score').innerText = `You collected ${Math.floor(this.score)} candies!`;
             document.getElementById('final-distance').innerText = `You traveled ${Math.floor(this.distance)} meters!`;
+        } else if (id === 'game-over-overlay') {
+            this.state = 'GAME_OVER';
+            document.getElementById('game-over-stats').innerText = `Score: ${Math.floor(this.score)} • Distance: ${Math.floor(this.distance)}m`;
         }
     }
 
@@ -476,6 +496,13 @@ class Game {
         this.showOverlay('results-overlay');
     }
 
+    gameOver() {
+        if (this.state === 'GAME_OVER') return;
+        this.sound.play('slowdown');
+        this.finishRun(); // Saves stats
+        this.showOverlay('game-over-overlay');
+    }
+
     handleShopClick(el) {
         const type = el.dataset.type;
         const id = el.dataset.id;
@@ -519,14 +546,10 @@ class Game {
         this.lastTime = timestamp;
 
         if (this.state === 'PLAYING') {
-            this.accumulator += deltaTime;
-            while (this.accumulator >= this.timeStep) {
-                this.update(this.timeStep / 1000);
-                this.accumulator -= this.timeStep;
-            }
+            const dt = Math.min(deltaTime, 100) / 1000; // Cap dt to avoid huge jumps
+            this.update(dt);
         }
         
-        // Draw even when paused to show the frozen state
         this.draw();
         this.animationId = requestAnimationFrame((t) => this.gameLoop(t));
     }
@@ -695,15 +718,20 @@ class Player {
     }
 
     update(dt) {
-        // Apply physics
+        // Apply physics with dt-based scaling
         let g = CONFIG.gravity;
         if (this.isGliding && this.vy > 0) {
             g = CONFIG.glideForce;
-            this.vy *= 0.95; // Resistance
+            this.vy *= 0.95; 
         }
         
-        this.vy += g;
-        this.y += this.vy;
+        this.vy += g * dt * 60;
+        this.y += this.vy * dt * 60;
+
+        // Fall out check
+        if (this.y > this.game.height + 100) {
+            this.game.gameOver();
+        }
 
         // Ground check against track
         const groundY = this.game.track.getYAt(this.x + this.width/2) - this.height;
@@ -837,16 +865,19 @@ class Track {
     reset() {
         this.points = [];
         this.offset = 0;
+        this.generateInitialPoints();
     }
 
     generateInitialPoints() {
+        this.points = [];
         let x = 0;
-        let y = this.game.height * 0.7;
+        const h = this.game.height || window.innerHeight || 600;
+        let y = h * 0.7;
         for (let i = 0; i < 20; i++) {
             this.points.push({ x, y });
             x += 200;
             y += (Math.random() - 0.5) * 150;
-            y = Math.min(this.game.height * 0.9, Math.max(this.game.height * 0.4, y));
+            y = Math.min(h * 0.8, Math.max(h * 0.5, y));
         }
     }
 

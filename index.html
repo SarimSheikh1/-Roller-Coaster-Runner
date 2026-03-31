@@ -712,7 +712,7 @@ class Game {
         this.ctx.restore();
 
         if (this.state === 'PLAYING' && this.isSlowedDown) {
-            this.ctx.fillStyle = 'rgba(255, 105, 180, 0.2)';
+            this.ctx.fillStyle = 'rgba(75, 0, 130, 0.4)';
             this.ctx.fillRect(0, 0, this.width, this.height);
             this.ctx.fillStyle = 'white';
             this.ctx.font = 'bold 30px Arial';
@@ -1027,7 +1027,8 @@ class Background {
             { name: 'Gumball Garden', sky: '#E0FFFF', accent: '#32cd32', secondary: '#ADD8E6' },
             { name: 'Cookie Canyon', sky: '#F5DEB3', accent: '#D2691E', secondary: '#F4A460' },
             { name: 'Ice Cream Peak', sky: '#E6E6FA', accent: '#FFB6C1', secondary: '#D8BFD8' },
-            { name: 'Cupcake Kingdom', sky: '#FFF0F5', accent: '#DA70D6', secondary: '#EE82EE' }
+            { name: 'Cupcake Kingdom', sky: '#FFF0F5', accent: '#DA70D6', secondary: '#EE82EE' },
+            { name: 'Midnight Candy', sky: '#1a1a2e', accent: '#4b0082', secondary: '#16213e' }
         ];
         this.currentThemeIndex = 0;
         this.layers = [
@@ -1186,7 +1187,7 @@ class Entity {
             ctx.font = 'bold 10px Arial';
             ctx.fillText("GOLD", -15, 4);
         } else if (this.type === 'obstacle') {
-            ctx.fillStyle = '#cc00cc';
+            ctx.fillStyle = '#4b0082'; // Dark Indigo/Purple
             ctx.beginPath();
             ctx.roundRect(-25, -5, 50, 20, [10]);
             ctx.fill();

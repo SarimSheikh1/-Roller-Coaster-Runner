@@ -199,6 +199,45 @@
             h1 { font-size: 2rem; }
             .btn { font-size: 1.2rem; padding: 12px 30px; }
             .card { padding: 25px; }
+            .hud-item { padding: 8px 15px; font-size: 1rem; }
+            .score-val { font-size: 1.4rem; }
+            #hud { top: 10px; left: 10px; right: 10px; gap: 5px; flex-wrap: wrap; }
+        }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 100;
+            display: none;
+        }
+
+        .jump-btn {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border: 4px solid white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            color: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.1s, background 0.1s;
+            touch-action: none;
+        }
+
+        .jump-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        @media (pointer: coarse) {
+            #mobile-controls { display: block; }
         }
     </style>
 </head>
@@ -206,6 +245,10 @@
 
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
+
+    <div id="mobile-controls" class="hidden">
+        <div id="jump-btn" class="jump-btn">👆</div>
+    </div>
 
     <div id="hud" class="hidden">
         <div class="hud-item">
@@ -394,11 +437,18 @@ class Game {
 
         this.canvas.addEventListener('mousedown', () => this.handleActionStart());
         this.canvas.addEventListener('mouseup', () => this.handleActionEnd());
-        this.canvas.addEventListener('touchstart', (e) => {
+        this.canvas.addEventListener('touchend', () => this.handleActionEnd());
+
+        // Mobile Button
+        const jumpBtn = document.getElementById('jump-btn');
+        jumpBtn.addEventListener('touchstart', (e) => {
             this.handleActionStart();
             e.preventDefault();
         }, { passive: false });
-        this.canvas.addEventListener('touchend', () => this.handleActionEnd());
+        jumpBtn.addEventListener('touchend', (e) => {
+            this.handleActionEnd();
+            e.preventDefault();
+        }, { passive: false });
     }
 
     handleActionStart() {
@@ -414,12 +464,15 @@ class Game {
     }
 
     resize() {
+        this.dpr = window.devicePixelRatio || 1;
         this.width = window.innerWidth;
         this.height = window.innerHeight;
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
+        this.canvas.width = this.width * this.dpr;
+        this.canvas.height = this.height * this.dpr;
+        this.canvas.style.width = this.width + 'px';
+        this.canvas.style.height = this.height + 'px';
+        this.ctx.scale(this.dpr, this.dpr);
         
-        // Adjust values based on screensize if needed
         if (this.player) this.player.resize();
     }
 
@@ -441,6 +494,12 @@ class Game {
             this.state = 'GAME_OVER';
             document.getElementById('game-over-stats').innerText = `Score: ${Math.floor(this.score)} • Distance: ${Math.floor(this.distance)}m`;
         }
+
+        if (this.state === 'PLAYING') {
+            document.getElementById('mobile-controls').classList.remove('hidden');
+        } else {
+            document.getElementById('mobile-controls').classList.add('hidden');
+        }
     }
 
     startGame() {
@@ -461,6 +520,7 @@ class Game {
         document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden'));
         document.getElementById('hud').classList.remove('hidden');
         document.getElementById('speed-o-meter').classList.remove('hidden');
+        document.getElementById('mobile-controls').classList.remove('hidden');
 
         // Show Tutorial briefly
         const msg = document.createElement('div');
@@ -706,6 +766,7 @@ class Player {
             this.jumpsLeft--;
             this.isGrounded = false;
             this.isGliding = false;
+            this.game.sound.play('jump');
             this.game.spawnParticles(this.x + this.width/2, this.y + this.height, 'white', 5);
         } else {
             // Start gliding if no jumps left
@@ -1048,7 +1109,9 @@ class SoundManager {
     }
 
     play(type) {
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(e => console.log("Audio resume error:", e));
+        }
         
         switch(type) {
             case 'jump': this.synth(150, 600, 0.1, 'triangle'); break;
